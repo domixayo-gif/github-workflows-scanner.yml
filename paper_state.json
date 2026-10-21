@@ -1,9 +1,42 @@
 {
-  "open_positions": {},
+  "open_positions": {
+    "BZdMHeSGP1jc4PhJaV4zrLkFe5jKuthTxKPJ3ZMkpump": {
+      "symbol": "PEPA",
+      "entry_price": 0.000405,
+      "entry_time": 1792600779.475957,
+      "position_usd": 10.0
+    },
+    "nAuyx14mHoXjzdBipvNMJxNC31jjYdPqMGaNfhHpump": {
+      "symbol": "QUARTZ",
+      "entry_price": 7.783e-05,
+      "entry_time": 1792600779.7706676,
+      "position_usd": 10.0
+    },
+    "HMm396e2kPf6GvvEp7fDYWH9MLFMmUUqAHTeeQX8pump": {
+      "symbol": "DCT",
+      "entry_price": 5.518e-05,
+      "entry_time": 1792600779.9911258,
+      "position_usd": 10.0
+    }
+  },
   "seen_tokens": [
+    "nAuyx14mHoXjzdBipvNMJxNC31jjYdPqMGaNfhHpump",
+    "8uWftzVoVBqyPJj6Xq9kRUtnz54W5GP4pd4smwZHpump",
+    "HMm396e2kPf6GvvEp7fDYWH9MLFMmUUqAHTeeQX8pump",
     "DR3uVReJt6qGVdQ4WbWYhz246TS845XnUQshhDdKpump",
-    "8uWftzVoVBqyPJj6Xq9kRUtnz54W5GP4pd4smwZHpump"
+    "BZdMHeSGP1jc4PhJaV4zrLkFe5jKuthTxKPJ3ZMkpump"
   ],
   "daily_realized_gross_usd": -9.201783194763394,
-  "daily_key": "2026-10-21"
+  "daily_key": "2026-10-21",
+  "checked_tokens": {
+    "2cpoug6XULCxZB9Dc7FcMY9wntCpmDJVqXAMQNxqpump": 1792600779.4078808,
+    "Fo3HRVSVDzr8vrwEpD32nVeobn93kKcTjXESGdo4pump": 1792600779.4342818,
+    "3woetcjhfXL4Ec3UA6u7Hu8ECQHuDCDWSEvmNtRAUred": 1792600779.4549959,
+    "BZdMHeSGP1jc4PhJaV4zrLkFe5jKuthTxKPJ3ZMkpump": 1792600779.475962,
+    "8zXXenfVHfrxUPvXrFHGf9wgQ9pghhpptkhgAgs1pump": 1792600779.7093208,
+    "7SL2VnfYsChvog5oQY9Nmtqu1wceaMiQzWoqoLQpump": 1792600779.7399948,
+    "nAuyx14mHoXjzdBipvNMJxNC31jjYdPqMGaNfhHpump": 1792600779.7706702,
+    "HMm396e2kPf6GvvEp7fDYWH9MLFMmUUqAHTeeQX8pump": 1792600779.9911275
+  },
+  "daily_realized_net_usd": 0.0
 }
