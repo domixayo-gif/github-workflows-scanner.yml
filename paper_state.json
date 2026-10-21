@@ -1,18 +1,5 @@
 {
-  "open_positions": {
-    "D2LUVT4g1uRZX6mSTyeGgv9ipaXN5k7241yuPntGpump": {
-      "symbol": "PHP2SHELL",
-      "entry_price": 0.0006293,
-      "entry_time": 1792608653.4283814,
-      "position_usd": 20.0
-    },
-    "96AsCWA8TjVcZDqVfMMPT2J3BfMYjYhyyMdYLjg3pump": {
-      "symbol": "PULLBACK",
-      "entry_price": 7.642e-05,
-      "entry_time": 1792608653.42895,
-      "position_usd": 20.0
-    }
-  },
+  "open_positions": {},
   "seen_tokens": [
     "nAuyx14mHoXjzdBipvNMJxNC31jjYdPqMGaNfhHpump",
     "8uWftzVoVBqyPJj6Xq9kRUtnz54W5GP4pd4smwZHpump",
@@ -23,7 +10,7 @@
     "D2LUVT4g1uRZX6mSTyeGgv9ipaXN5k7241yuPntGpump",
     "96AsCWA8TjVcZDqVfMMPT2J3BfMYjYhyyMdYLjg3pump"
   ],
-  "daily_realized_gross_usd": -1.5221,
+  "daily_realized_gross_usd": 0.0,
   "daily_key": "2026-10-21",
   "checked_tokens": {
     "BZdMHeSGP1jc4PhJaV4zrLkFe5jKuthTxKPJ3ZMkpump": 1792600779.475962,
@@ -74,7 +61,21 @@
     "96AsCWA8TjVcZDqVfMMPT2J3BfMYjYhyyMdYLjg3pump": 1792630253.4289517,
     "419RpM6KRAVWAJurhEW87yRrt8X4GbGLoFSy7NWapump": 1792630253.436702,
     "45GfD9DB9AbHiPNue7oDatqqizBbeyqiKVPHTK3Vpump": 1792630253.436711,
-    "85kRJ3iv4B4eX3UU7jqpzrwcArRgN1NSrYrXK1xRpump": 1792630253.4367187
+    "85kRJ3iv4B4eX3UU7jqpzrwcArRgN1NSrYrXK1xRpump": 1792630253.4367187,
+    "13mY83Sk4o8X63so9t3U7urZhWEemao8uq4ChDH7Xpwe": 1792632485.0741682,
+    "EJAxERvKU4kEVXn3NarjvRtgaMaJyP9ZuMeKA7JJpump": 1792632485.074184,
+    "3KsohiCRJd6ftz6AXuk3d6ghj53HzNj8vRehMXaqpump": 1792632485.0741925,
+    "8nnFKMGDDeT3GPCmTmqBHMNGFHHBPk35nSyPS9X1pump": 1792632485.074199,
+    "Fe6KyLPHWerbHAYG7AFQk3LwgyQ4tViDzkfkCi5qpump": 1792632485.074208,
+    "A5Hh6fSKKQvghVUHSzJQpWPkEoZqJSoguFeUrcZRpump": 1792632485.0742137,
+    "AyCogdFp27VYW7ZdNLFFykjhCaxo716SA9NzahKFpump": 1792632485.0742188,
+    "rRHFienk7FPi2syfziBKt4PcpppVYj4pqoGWxwQDsta": 1792632485.0742247,
+    "5Jj9FDm7hAFRjA9ikSGA8DDz6sa9NAi7PFM36FcBpump": 1792632485.0742319,
+    "FeX75EXwHf3xvs3gczKHNNAGrU8UVMZFjw9HJ1bApump": 1792632485.0742373,
+    "Ckr8bHQ4S7gWXZJKfvLLT1KpC3EX5HVjK1bd4rNHSLAB": 1792632485.074243,
+    "vofbjQG4x2uJBKSe1QLkk6tsjpNk1wwZUucGmp73mab": 1792632485.0742533,
+    "FrWsoz8b3ySwcARforVsEzhCrq1Ww42r7LThqHZYpump": 1792632485.0742633,
+    "CaRCU7dm1Wz4MkxwpuKNgSWvprWxQsG4cCDpNo8rpump": 1792632485.0742736
   },
-  "daily_realized_net_usd": -4.3221
+  "daily_realized_net_usd": 0.0
 }
