@@ -1,12 +1,5 @@
 {
-  "open_positions": {
-    "9u8VpNQgB7D71Zq3URiQttswXMsKLbWnHPXgYVZFpump": {
-      "symbol": "KIMBULL",
-      "entry_price": 0.0001964,
-      "entry_time": 1792602288.5371902,
-      "position_usd": 20.0
-    }
-  },
+  "open_positions": {},
   "seen_tokens": [
     "nAuyx14mHoXjzdBipvNMJxNC31jjYdPqMGaNfhHpump",
     "8uWftzVoVBqyPJj6Xq9kRUtnz54W5GP4pd4smwZHpump",
@@ -15,7 +8,7 @@
     "BZdMHeSGP1jc4PhJaV4zrLkFe5jKuthTxKPJ3ZMkpump",
     "9u8VpNQgB7D71Zq3URiQttswXMsKLbWnHPXgYVZFpump"
   ],
-  "daily_realized_gross_usd": 0.0,
+  "daily_realized_gross_usd": -1.5221,
   "daily_key": "2026-10-21",
   "checked_tokens": {
     "BZdMHeSGP1jc4PhJaV4zrLkFe5jKuthTxKPJ3ZMkpump": 1792600779.475962,
@@ -39,7 +32,14 @@
     "DUSTYFwWQhfYXC9zqx59K3T9cnKvWNm9LtUqNnY1AWQm": 1792623888.5371766,
     "HN3esNNTUjJogfagoxzfoSDZHRHuonwzQv7U27R7pump": 1792623888.5371807,
     "9u8VpNQgB7D71Zq3URiQttswXMsKLbWnHPXgYVZFpump": 1792623888.5371919,
-    "G6AjY7RnwoxU7UPUh5ru53Xgv9qGLKfR4va8nsJZpump": 1792623888.5383122
+    "G6AjY7RnwoxU7UPUh5ru53Xgv9qGLKfR4va8nsJZpump": 1792623888.5383122,
+    "Drco6bwJHnRrMnTLgrBbp7gPBLKreRWY2mRkJCEupump": 1792624554.5093222,
+    "FsvUxQ2i7nDz8qqD1CAz8Jpd5u4WeiVAjGKF6h51pump": 1792624554.5093415,
+    "4TT61PfZAmHTiwEAaM4jPxVggp2hiFrawmzNFDA1pump": 1792624554.5093522,
+    "jyBGb2QxTH9rdJMT4zaMW8jjio61bER8K8JNFSspump": 1792624554.5093637,
+    "H2mNeSJV75VuQpGA9C11FwWoT9DU7sMCYUNVaMyQpump": 1792624554.5093722,
+    "3KMjkC7Q3HUxMvBxHi6VEtkTuhNhk6ucAhujC1qxpump": 1792624554.5093791,
+    "7XCVnvLs874fEgH4cWvAasEoyJE1yBpDm2v3HmVHpump": 1792624554.509385
   },
-  "daily_realized_net_usd": 0.0
+  "daily_realized_net_usd": -4.3221
 }
