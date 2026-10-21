@@ -17,7 +17,8 @@ MIN_VOLUME_5M = 10000
 MIN_TXNS_5M = 20
 MAX_AGE_HOURS = 48
 MAX_MOVE_5M = 20
-TAKE_PROFIT = 5
+
+TAKE_PROFIT = 10
 STOP_LOSS = 4
 MAX_HOLD_MINUTES = 60
 POSITION_USD = 10
@@ -44,7 +45,9 @@ def get_json(url):
 def load_state():
     if STATE_FILE.exists():
         try:
-            return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+            return json.loads(
+                STATE_FILE.read_text(encoding="utf-8")
+            )
         except (ValueError, OSError):
             pass
 
@@ -91,7 +94,9 @@ def find_pair(address):
 
     try:
         pairs = get_json(url)
-    except (HTTPError, URLError, TimeoutError, ValueError, OSError) as exc:
+    except (
+        HTTPError, URLError, TimeoutError, ValueError, OSError
+    ) as exc:
         print("Pair lookup error:", str(exc)[:150])
         return None
 
@@ -134,10 +139,14 @@ def check_pair(pair):
     age_hours = 9999
 
     if created:
-        age_hours = max(
-            0,
-            (time.time() * 1000 - float(created)) / 3600000,
-        )
+        try:
+            age_hours = max(
+                0,
+                (time.time() * 1000 - float(created))
+                / 3600000,
+            )
+        except (TypeError, ValueError):
+            pass
 
     reasons = []
 
@@ -168,12 +177,12 @@ def close_position(state, address, pair, price, reason):
 
     if entry <= 0 or price <= 0:
         print("Invalid price; cannot calculate paper result.")
+        state["open_positions"][address] = position
         return
 
     change_percent = (price / entry - 1) * 100
     gross_pnl = amount * change_percent / 100
 
-    # Rough estimate for round-trip costs, not a live quote.
     estimated_cost = (
         amount * ESTIMATED_COST_PERCENT / 100
     )
@@ -230,9 +239,10 @@ def main():
 
     print("SOLANA MEME COIN PAPER BOT")
     print("PAPER MODE ONLY: no wallet or real orders")
+    print("TAKE PROFIT:", TAKE_PROFIT, "%")
+    print("STOP LOSS:", STOP_LOSS, "%")
     print("UTC time:", now())
 
-    # Update and close existing virtual positions.
     for address in list(state["open_positions"]):
         pair = find_pair(address)
 
@@ -278,7 +288,9 @@ def main():
         profiles = get_json(
             API + "/token-profiles/latest/v1"
         )
-    except (HTTPError, URLError, TimeoutError, ValueError, OSError) as exc:
+    except (
+        HTTPError, URLError, TimeoutError, ValueError, OSError
+    ) as exc:
         print("Token scan failed:", str(exc)[:200])
         save_state(state)
         return
@@ -299,12 +311,10 @@ def main():
 
     for item in candidates:
         address = item.get("tokenAddress", "")
-        state["seen_tokens"].append(address)
-
         pair = find_pair(address)
 
         if not pair:
-            print("REJECT: no available pair data")
+            print("No pair data; token can be retried:", address)
             continue
 
         result = check_pair(pair)
@@ -314,7 +324,6 @@ def main():
         liquidity = result[3]
         volume = result[4]
         transactions = result[5]
-        age = result[6]
         move = result[7]
 
         token = pair.get("baseToken") or {}
@@ -327,6 +336,8 @@ def main():
             "| txns 5m:", transactions,
             "| move 5m:", round(move, 2),
         )
+
+        state["seen_tokens"].append(address)
 
         if not passed:
             print("REJECT:", symbol, "|".join(reasons))
