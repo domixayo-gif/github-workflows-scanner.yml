@@ -1,20 +1,9 @@
 {
-  "open_positions": {
-    "8uWftzVoVBqyPJj6Xq9kRUtnz54W5GP4pd4smwZHpump": {
-      "symbol": "wifchi",
-      "entry_price": 0.0001364,
-      "entry_time": 1792594380.6301212
-    },
-    "DR3uVReJt6qGVdQ4WbWYhz246TS845XnUQshhDdKpump": {
-      "symbol": "HUMANOID",
-      "entry_price": 0.0002305,
-      "entry_time": 1792594380.97687
-    }
-  },
+  "open_positions": {},
   "seen_tokens": [
     "DR3uVReJt6qGVdQ4WbWYhz246TS845XnUQshhDdKpump",
     "8uWftzVoVBqyPJj6Xq9kRUtnz54W5GP4pd4smwZHpump"
   ],
-  "daily_realized_gross_usd": 0.0,
+  "daily_realized_gross_usd": -9.201783194763394,
   "daily_key": "2026-10-21"
 }

@@ -1,2 +1,4 @@
 
 time_utc,token_address,symbol,entry_price,exit_price,position_usd,gross_pnl_usd,estimated_cost_usd,estimated_net_pnl_usd,reason
+2026-10-21T16:26:50.967274+00:00,8uWftzVoVBqyPJj6Xq9kRUtnz54W5GP4pd4smwZHpump,wifchi,0.0001364,0.0001458,10.0,0.6891,0.4,0.2891,TIME_LIMIT
+2026-10-21T16:26:51.062673+00:00,DR3uVReJt6qGVdQ4WbWYhz246TS845XnUQshhDdKpump,HUMANOID,0.0002305,2.514e-06,10.0,-9.8909,0.4,-10.2909,STOP_LOSS
