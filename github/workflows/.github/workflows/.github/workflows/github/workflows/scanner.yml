@@ -1,0 +1,41 @@
+
+name: Solana Meme Coin Paper Bot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: solana-meme-paper-bot
+  cancel-in-progress: false
+
+jobs:
+  paper-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run paper scanner
+        run: python scanner.py
+
+      - name: Save paper trading records
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add paper_state.json paper_trades.csv
+          if ! git diff --cached --quiet; then
+            git commit -m "Update paper trading state"
+            git push
+          fi
