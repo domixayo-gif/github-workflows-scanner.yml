@@ -17,6 +17,8 @@ MAX_HOLD_MINUTES = 60
 POSITION_USD = 10.0
 MAX_POSITIONS = 3
 DAILY_LOSS_LIMIT = 5.0
+
+# Assumed total trading costs, not verified live fees.
 ESTIMATED_COST_PERCENT = 4.0
 
 MIN_LIQUIDITY_USD = 15000
@@ -25,6 +27,23 @@ MIN_TXNS_5M = 20
 MAX_PAIR_AGE_HOURS = 48
 MAX_MOVE_5M_PERCENT = 20.0
 MAX_NEW_TOKENS_PER_SCAN = 30
+
+# Recheck rejected tokens after this many seconds.
+REJECT_COOLDOWN_SECONDS = 6 * 60 * 60
+API_FAILURE_COOLDOWN_SECONDS = 10 * 60
+
+CSV_HEADERS = [
+    "time_utc",
+    "token_address",
+    "symbol",
+    "entry_price",
+    "exit_price",
+    "position_usd",
+    "gross_pnl_usd",
+    "estimated_cost_usd",
+    "estimated_net_pnl_usd",
+    "reason",
+]
 
 
 def now_utc():
@@ -36,44 +55,61 @@ def today_key():
 
 
 def load_state():
-    default_state = {
+    defaults = {
         "open_positions": {},
         "seen_tokens": [],
+        "checked_tokens": {},
         "daily_realized_gross_usd": 0.0,
+        "daily_realized_net_usd": 0.0,
         "daily_key": today_key(),
     }
 
     if not STATE_FILE.exists():
-        return default_state
+        return defaults
 
     try:
         with STATE_FILE.open("r", encoding="utf-8") as file:
             state = json.load(file)
 
         if not isinstance(state, dict):
-            raise ValueError("State must be a JSON object")
+            raise ValueError("State must be an object")
 
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print("STATE WARNING:", str(exc))
-        print("Using a fresh default state.")
-        return default_state
+        print("Using default state.")
+        return defaults
 
-    if not isinstance(state.get("open_positions"), dict):
+    for key, value in defaults.items():
+        if key not in state:
+            state[key] = value
+
+    if not isinstance(state["open_positions"], dict):
         state["open_positions"] = {}
 
-    if not isinstance(state.get("seen_tokens"), list):
+    if not isinstance(state["seen_tokens"], list):
         state["seen_tokens"] = []
 
-    try:
-        state["daily_realized_gross_usd"] = float(
-            state.get("daily_realized_gross_usd", 0.0)
-        )
-    except (TypeError, ValueError):
-        state["daily_realized_gross_usd"] = 0.0
+    if not isinstance(state["checked_tokens"], dict):
+        state["checked_tokens"] = {}
+
+    for key in (
+        "daily_realized_gross_usd",
+        "daily_realized_net_usd",
+    ):
+        try:
+            state[key] = float(state.get(key, 0.0))
+        except (TypeError, ValueError):
+            state[key] = 0.0
 
     if state.get("daily_key") != today_key():
         state["daily_key"] = today_key()
         state["daily_realized_gross_usd"] = 0.0
+        state["daily_realized_net_usd"] = 0.0
+
+    # Migrate positions created by the previous scanner.
+    for position in state["open_positions"].values():
+        if isinstance(position, dict):
+            position.setdefault("position_usd", POSITION_USD)
 
     return state
 
@@ -88,39 +124,34 @@ def save_state(state):
 
 
 def api_get(path):
-    url = API + path
     request = urllib.request.Request(
-        url,
-        headers={"User-Agent": "Solana-Paper-Scanner/1.0"},
+        API + path,
+        headers={"User-Agent": "Solana-Paper-Scanner/2.0"},
     )
 
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
-            body = response.read().decode("utf-8")
-            return json.loads(body)
+            return json.loads(response.read().decode("utf-8"))
 
     except urllib.error.HTTPError as exc:
         print("API HTTP ERROR:", exc.code, path)
-        return None
-
     except urllib.error.URLError as exc:
         print("API CONNECTION ERROR:", str(exc.reason), path)
-        return None
-
-    except (TimeoutError, json.JSONDecodeError) as exc:
+    except (TimeoutError, OSError, ValueError) as exc:
         print("API RESPONSE ERROR:", str(exc), path)
-        return None
+
+    return None
 
 
-def get_best_pair(token_address):
-    path = "/token-pairs/v1/solana/" + token_address
-    data = api_get(path)
+def get_best_pair(address):
+    data = api_get("/token-pairs/v1/solana/" + address)
 
     if not isinstance(data, list):
-        print("PAIR DATA UNAVAILABLE:", token_address)
+        print("PAIR DATA UNAVAILABLE:", address)
         return None
 
-    pairs = []
+    best_pair = None
+    best_liquidity = 0.0
 
     for pair in data:
         if not isinstance(pair, dict):
@@ -129,22 +160,21 @@ def get_best_pair(token_address):
         if pair.get("chainId") != "solana":
             continue
 
-        liquidity_data = pair.get("liquidity") or {}
-
         try:
-            liquidity = float(liquidity_data.get("usd") or 0)
+            liquidity = float(
+                (pair.get("liquidity") or {}).get("usd") or 0
+            )
         except (TypeError, ValueError):
-            liquidity = 0.0
+            continue
 
-        if liquidity > 0:
-            pairs.append((liquidity, pair))
+        if liquidity > best_liquidity:
+            best_liquidity = liquidity
+            best_pair = pair
 
-    if not pairs:
-        print("NO LIQUIDITY DATA:", token_address)
-        return None
+    if best_pair is None:
+        print("NO USABLE SOLANA PAIR:", address)
 
-    pairs.sort(key=lambda item: item[0], reverse=True)
-    return pairs[0][1]
+    return best_pair
 
 
 def check_pair(pair):
@@ -152,24 +182,19 @@ def check_pair(pair):
         liquidity = float(
             (pair.get("liquidity") or {}).get("usd") or 0
         )
-
         volume = float(
             (pair.get("volume") or {}).get("m5") or 0
         )
-
         txns = (pair.get("txns") or {}).get("m5") or {}
         buys = int(txns.get("buys") or 0)
         sells = int(txns.get("sells") or 0)
-
         price = float(pair.get("priceUsd") or 0)
-
         movement = float(
             (pair.get("priceChange") or {}).get("m5") or 0
         )
-
         created_ms = int(pair.get("pairCreatedAt") or 0)
 
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, AttributeError):
         return False, "INVALID MARKET DATA"
 
     if price <= 0:
@@ -182,10 +207,10 @@ def check_pair(pair):
         return False, "LOW 5M VOLUME: $" + str(round(volume))
 
     if buys + sells < MIN_TXNS_5M:
-        return False, "LOW 5M TRANSACTIONS: " + str(buys + sells)
+        return False, "LOW 5M TRANSACTIONS"
 
     if abs(movement) > MAX_MOVE_5M_PERCENT:
-        return False, "5M MOVEMENT TOO HIGH: " + str(round(movement, 2))
+        return False, "5M MOVEMENT TOO HIGH"
 
     if created_ms <= 0:
         return False, "PAIR CREATION TIME MISSING"
@@ -198,10 +223,10 @@ def check_pair(pair):
         return False, "INVALID PAIR AGE"
 
     if age_hours > MAX_PAIR_AGE_HOURS:
-        return False, "PAIR TOO OLD: " + str(round(age_hours, 1)) + "h"
+        return False, "PAIR TOO OLD"
 
     if buys <= sells:
-        return False, "SELLS EQUAL OR EXCEED BUYS"
+        return False, "BUYS DO NOT EXCEED SELLS"
 
     return True, "PASS"
 
@@ -213,19 +238,7 @@ def ensure_trade_file():
     with TRADES_FILE.open(
         "w", newline="", encoding="utf-8"
     ) as file:
-        writer = csv.writer(file)
-        writer.writerow([
-            "time_utc",
-            "token_address",
-            "symbol",
-            "entry_price",
-            "exit_price",
-            "position_usd",
-            "gross_pnl_usd",
-            "estimated_cost_usd",
-            "estimated_net_pnl_usd",
-            "reason",
-        ])
+        csv.writer(file).writerow(CSV_HEADERS)
 
 
 def close_position(state, address, price, reason):
@@ -236,18 +249,18 @@ def close_position(state, address, price, reason):
 
     try:
         entry = float(position["entry_price"])
-        entry_time = float(position["entry_time"])
-    except (KeyError, TypeError, ValueError):
+        amount = float(position.get("position_usd", POSITION_USD))
+    except (TypeError, ValueError, KeyError):
         print("POSITION DATA ERROR:", address)
         return
 
-    if entry <= 0 or price <= 0:
-        print("INVALID EXIT PRICE:", address)
+    if entry <= 0 or price <= 0 or amount <= 0:
+        print("INVALID EXIT DATA:", address)
         return
 
-    gross_pnl = POSITION_USD * ((price - entry) / entry)
-    estimated_cost = POSITION_USD * ESTIMATED_COST_PERCENT / 100.0
-    net_pnl = gross_pnl - estimated_cost
+    gross = amount * ((price - entry) / entry)
+    cost = amount * ESTIMATED_COST_PERCENT / 100.0
+    net = gross - cost
 
     ensure_trade_file()
 
@@ -261,31 +274,29 @@ def close_position(state, address, price, reason):
             position.get("symbol", "UNKNOWN"),
             entry,
             price,
-            POSITION_USD,
-            round(gross_pnl, 4),
-            round(estimated_cost, 4),
-            round(net_pnl, 4),
+            amount,
+            round(gross, 4),
+            round(cost, 4),
+            round(net, 4),
             reason,
         ])
 
-    state["daily_realized_gross_usd"] += gross_pnl
+    state["daily_realized_gross_usd"] += gross
+    state["daily_realized_net_usd"] += net
+
+    symbol = position.get("symbol", "UNKNOWN")
     del state["open_positions"][address]
 
-    held_minutes = (time.time() - entry_time) / 60.0
-
     print(
-        "PAPER CLOSE:", position.get("symbol", "UNKNOWN"),
+        "PAPER CLOSE:", symbol,
         "| reason:", reason,
-        "| gross P/L: $", round(gross_pnl, 4),
-        "| estimated net P/L: $", round(net_pnl, 4),
-        "| minutes held:", round(held_minutes, 1),
+        "| gross: $", round(gross, 4),
+        "| estimated net: $", round(net, 4),
     )
 
 
 def manage_positions(state):
-    addresses = list(state["open_positions"].keys())
-
-    for address in addresses:
+    for address in list(state["open_positions"].keys()):
         pair = get_best_pair(address)
 
         if not pair:
@@ -294,29 +305,18 @@ def manage_positions(state):
 
         try:
             price = float(pair.get("priceUsd") or 0)
-        except (TypeError, ValueError):
-            continue
-
-        if price <= 0:
-            continue
-
-        position = state["open_positions"].get(address)
-
-        if not position:
-            continue
-
-        try:
+            position = state["open_positions"][address]
             entry = float(position["entry_price"])
             entry_time = float(position["entry_time"])
-        except (KeyError, TypeError, ValueError):
+        except (TypeError, ValueError, KeyError):
             print("POSITION DATA ERROR:", address)
             continue
 
-        if entry <= 0:
+        if price <= 0 or entry <= 0:
             continue
 
-        change = ((price - entry) / entry) * 100
-        held = (time.time() - entry_time) / 60.0
+        change = (price / entry - 1) * 100
+        held = (time.time() - entry_time) / 60
 
         print(
             "WATCH:", position.get("symbol", "UNKNOWN"),
@@ -326,32 +326,22 @@ def manage_positions(state):
 
         if change >= TAKE_PROFIT:
             close_position(state, address, price, "TAKE_PROFIT")
-
         elif change <= -STOP_LOSS:
             close_position(state, address, price, "STOP_LOSS")
-
         elif held >= MAX_HOLD_MINUTES:
             close_position(state, address, price, "TIME_LIMIT")
 
 
 def discover_tokens():
-    print("Checking DexScreener token profiles...")
+    print("Checking latest DexScreener token profiles...")
 
     data = api_get("/token-profiles/latest/v1")
 
-    if data is None:
-        print("DISCOVERY FAILED: API returned no usable response.")
-        return []
-
     if not isinstance(data, list):
-        print("DISCOVERY ERROR: Expected a list.")
-        print("Response type:", type(data).__name__)
+        print("DISCOVERY FAILED: No usable profile list.")
         return []
-
-    print("Profiles returned:", len(data))
 
     addresses = []
-    solana_count = 0
 
     for item in data:
         if not isinstance(item, dict):
@@ -360,7 +350,6 @@ def discover_tokens():
         if item.get("chainId") != "solana":
             continue
 
-        solana_count += 1
         address = item.get("tokenAddress")
 
         if address and address not in addresses:
@@ -369,42 +358,47 @@ def discover_tokens():
         if len(addresses) >= MAX_NEW_TOKENS_PER_SCAN:
             break
 
-    print("Solana profiles found:", solana_count)
-    print("Unique addresses selected:", len(addresses))
-
+    print("Solana addresses selected:", len(addresses))
     return addresses
 
 
 def main():
     print("=" * 50)
     print("SOLANA MEME COIN PAPER SCANNER")
-    print("MODE: SIMULATION ONLY - NO REAL ORDERS")
+    print("SIMULATION ONLY - NO REAL ORDERS")
     print("UTC:", now_utc().isoformat())
     print("Take profit:", TAKE_PROFIT, "%")
     print("Stop loss:", STOP_LOSS, "%")
-    print("Simulated position: $", POSITION_USD)
-    print("Maximum positions:", MAX_POSITIONS)
+    print("Estimated cost:", ESTIMATED_COST_PERCENT, "%")
+    print("Position size: $", POSITION_USD)
     print("=" * 50)
 
     state = load_state()
     ensure_trade_file()
 
     manage_positions(state)
+    save_state(state)
 
-    if state["daily_realized_gross_usd"] <= -DAILY_LOSS_LIMIT:
-        print("DAILY LOSS LIMIT REACHED. No new entries.")
-        save_state(state)
+    if state["daily_realized_net_usd"] <= -DAILY_LOSS_LIMIT:
+        print("DAILY NET LOSS LIMIT REACHED. No new entries.")
         return
 
     open_positions = state["open_positions"]
     seen_tokens = set(state["seen_tokens"])
+    checked_tokens = state["checked_tokens"]
+    now = time.time()
 
-    print("Currently open positions:", len(open_positions))
-    print("Previously seen tokens:", len(seen_tokens))
+    print("Open positions:", len(open_positions))
+    print("Previously opened tokens:", len(seen_tokens))
+    print("Daily gross P/L: $", round(
+        state["daily_realized_gross_usd"], 4
+    ))
+    print("Daily estimated net P/L: $", round(
+        state["daily_realized_net_usd"], 4
+    ))
 
     if len(open_positions) >= MAX_POSITIONS:
         print("MAXIMUM OPEN POSITIONS REACHED.")
-        save_state(state)
         return
 
     addresses = discover_tokens()
@@ -417,15 +411,26 @@ def main():
     checked = 0
     rejected = 0
     opened = 0
+    skipped = 0
 
     for address in addresses:
-        if address in seen_tokens:
-            print("SKIP: Already seen token:", address)
+        if address in open_positions or address in seen_tokens:
+            skipped += 1
+            continue
+
+        try:
+            last_check = float(checked_tokens.get(address, 0))
+        except (TypeError, ValueError):
+            last_check = 0
+
+        if now - last_check < REJECT_COOLDOWN_SECONDS:
+            skipped += 1
             continue
 
         pair = get_best_pair(address)
 
         if not pair:
+            checked_tokens[address] = time.time()
             rejected += 1
             continue
 
@@ -436,6 +441,7 @@ def main():
         symbol = str(base.get("symbol") or "UNKNOWN")[:30]
 
         if not passed:
+            checked_tokens[address] = time.time()
             rejected += 1
             print("REJECT:", symbol, "|", reason)
             continue
@@ -443,11 +449,10 @@ def main():
         try:
             entry_price = float(pair.get("priceUsd") or 0)
         except (TypeError, ValueError):
-            rejected += 1
-            print("REJECT:", symbol, "| INVALID ENTRY PRICE")
-            continue
+            entry_price = 0.0
 
         if entry_price <= 0:
+            checked_tokens[address] = time.time()
             rejected += 1
             print("REJECT:", symbol, "| INVALID ENTRY PRICE")
             continue
@@ -456,14 +461,16 @@ def main():
             "symbol": symbol,
             "entry_price": entry_price,
             "entry_time": time.time(),
+            "position_usd": POSITION_USD,
         }
 
         seen_tokens.add(address)
+        checked_tokens[address] = time.time()
         opened += 1
 
         print(
             "PAPER OPEN:", symbol,
-            "| entry price:", entry_price,
+            "| entry:", entry_price,
             "| simulated amount: $", POSITION_USD,
         )
 
@@ -475,6 +482,18 @@ def main():
 
         time.sleep(0.2)
 
+    # Keep the most recently checked tokens to limit state-file growth.
+    cutoff = time.time() - REJECT_COOLDOWN_SECONDS
+    cleaned = {}
+
+    for address, stamp in checked_tokens.items():
+        try:
+            if float(stamp) >= cutoff:
+                cleaned[address] = float(stamp)
+        except (TypeError, ValueError):
+            continue
+
+    state["checked_tokens"] = cleaned
     state["seen_tokens"] = list(seen_tokens)[-5000:]
     save_state(state)
 
@@ -483,12 +502,15 @@ def main():
     print("Addresses discovered:", len(addresses))
     print("Pairs checked:", checked)
     print("Candidates rejected:", rejected)
+    print("Tokens skipped:", skipped)
     print("New simulated positions opened:", opened)
     print("Total open positions:", len(open_positions))
-    print(
-        "Daily gross realized P/L: $",
-        round(state["daily_realized_gross_usd"], 4),
-    )
+    print("Daily gross P/L: $", round(
+        state["daily_realized_gross_usd"], 4
+    ))
+    print("Daily estimated net P/L: $", round(
+        state["daily_realized_net_usd"], 4
+    ))
     print("Scan complete.")
 
 
